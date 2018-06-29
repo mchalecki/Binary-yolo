@@ -45,7 +45,6 @@ def train(args):
     model = MyResnet()
     if CUDA:
         model.cuda()
-
     optimizer = optim.Adam(model.conv_addition.parameters(), lr=args.lr)
     saver = CheckpointSaver(args.save_dir_name, max_checkpoints=3)
     scheduler = lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.1)
@@ -68,8 +67,7 @@ def train(args):
 
                 with torch.set_grad_enabled(phase == 'train'):
                     pred = model(img)
-                    y_ = pred.detach()
-                    y_ = y_.permute((0, 2, 3, 1))
+                    y_ = pred.permute((0, 2, 3, 1))
                     y = y.permute((0, 2, 3, 1))
                     loss = loss_function(y_, y)
                     epoch_avg.add(loss.item())
@@ -122,7 +120,6 @@ def loss_function(y_, y):
     #     loss += c_orrd * (predited_cell[1] - target_cell[1]) ** 2 + (
     #             predited_cell[2] - target_cell[2]) ** 2  # x y
     #     loss += (predited_cell[3] - target_cell[3]) ** 2 + (predited_cell[4] - target_cell[4]) ** 2  # wh
-    loss.requires_grad = True
     return loss
 
 
