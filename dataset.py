@@ -15,13 +15,13 @@ import pandas as pd
 # IN 416x416x3
 # OUT 64X64x5(p, bx, by, bw, bh)
 class YoloDataset(Dataset):
-    def __init__(self, csv_file: str, root_dir: str, num_of_classes: int = 1, transform=None):
+    def __init__(self, csv_file: str, root_dir: str, num_of_classes: int = 1, IN=416, transform=None):
         self.boxes = pd.read_csv(csv_file, names=["filename", "top", "right", "bottom", "left"])
         self.root_dir = root_dir
         self.transform = transform
         # self.boxes_kmeans = self._get_boxes_kmeans(num_of_classes)
         self.anchors = 1
-        self.IN = 416
+        self.IN = IN
         self.FILTER_SIZE = 13
         assert self.IN % self.FILTER_SIZE == 0
         self.OUT = int(self.IN / self.FILTER_SIZE)
@@ -31,8 +31,9 @@ class YoloDataset(Dataset):
         return len(self.boxes)
 
     def __getitem__(self, idx):
-        box = self.boxes.iloc[idx].values
-        img = io.imread(os.path.join(self.root_dir, box[0]))
+        filename = self.boxes.iloc[idx]["filename"]
+        img_boxes = self.boxes[self.boxes["filename"] == filename]
+        img = io.imread(os.path.join(self.root_dir, filename))
         in_size = img.shape
         try:
             if in_size[2] == 4:
@@ -41,32 +42,29 @@ class YoloDataset(Dataset):
         except IndexError:
             print(f"Remove from csv white/black image {box[0]}")
         img = resize(img, (self.IN, self.IN))
-        box_rescaled = self._rescale_boxes(box[1:], in_size)
-        y = self._get_y_to_img(box_rescaled)
+        boxes_rescaled = [self._rescale_box(i[1:], in_size) for i in img_boxes.values]
+        y = self._get_y_to_img(boxes_rescaled)
         sample = {"x": img, 'y': y}
         if self.transform:
             sample = self.transform(sample)
         return sample
 
-    def _get_y_to_img(self, box) -> np.ndarray:
+    def _get_y_to_img(self, boxes) -> np.ndarray:
         y = np.zeros((self.OUT, self.OUT, self.OUT_CHANNELS))
-        box_middle_point = (box[2] + box[0]) / 2, (box[3] + box[1]) / 2  # y,x
-        height = (box[2] - box[0]) / self.FILTER_SIZE
-        width = (box[1] - box[3]) / self.FILTER_SIZE
-        y[floor(box_middle_point[0] / self.FILTER_SIZE), floor(box_middle_point[1] / self.FILTER_SIZE)] = [1,  # p
-                                                                                                           (
-                                                                                                                   box_middle_point[
-                                                                                                                       1] % self.FILTER_SIZE) / self.FILTER_SIZE,
-                                                                                                           # bx
-                                                                                                           (
-                                                                                                                   box_middle_point[
-                                                                                                                       0] % self.FILTER_SIZE) / self.FILTER_SIZE,
-                                                                                                           # by
-                                                                                                           height,  # bh
-                                                                                                           width]  # bw
+        for box in boxes:
+            box_middle_point = (box[2] + box[0]) / 2, (box[3] + box[1]) / 2  # y,x
+            height = (box[2] - box[0]) / self.FILTER_SIZE
+            width = (box[1] - box[3]) / self.FILTER_SIZE
+            bx = (box_middle_point[1] % self.FILTER_SIZE) / self.FILTER_SIZE
+            by = (box_middle_point[0] % self.FILTER_SIZE) / self.FILTER_SIZE
+
+            y[floor(box_middle_point[0] / self.FILTER_SIZE), floor(box_middle_point[1] / self.FILTER_SIZE)] = [1, bx,
+                                                                                                               by,
+                                                                                                               height,
+                                                                                                               width]
         return y
 
-    def _rescale_boxes(self, box, in_size) -> []:
+    def _rescale_box(self, box, in_size) -> []:
         vertical_ratio = self.IN / in_size[0]
         horizontal_ratio = self.IN / in_size[1]
         new_box = [box[0] * vertical_ratio, box[1] * horizontal_ratio, box[2] * vertical_ratio,
@@ -102,4 +100,6 @@ class ToTensor:
 
 
 if __name__ == '__main__':
-    yolo_dataset = YoloDataset('./raw_dataset/raw_dataset/faces.csv', './raw_dataset/raw_dataset')
+    yolo_dataset = YoloDataset('./raw_dataset/raw_dataset/faces.csv', './raw_dataset/raw_dataset', IN=195)
+    a = yolo_dataset[3]
+    print(a)

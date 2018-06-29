@@ -17,10 +17,13 @@ from torchvision import transforms, models
 # model = models.resnet18(pretrained=True)
 # num_ftrs = model.fc.in_features
 # model.fc = nn.Linear(25088, 5)
+# pretrained_model = torchvision.models.vgg16(pretrained=True)
+# modified_pretrained = nn.Sequential(*list(pretrained_model.features.children())[:-1])
 
-class Model(nn.Module):
+
+class CustomModel(nn.Module):
     def __init__(self):
-        super(Model, self).__init__()
+        super(CustomModel, self).__init__()
 
         self.net = nn.Sequential(
             nn.Conv2d(3, 16, 5),
@@ -35,3 +38,25 @@ class Model(nn.Module):
 
     def forward(self, x):
         return self.net.forward(x)
+
+
+class MyResnet(nn.Module):
+    def __init__(self):
+        super(MyResnet, self).__init__()
+        pretrained_resnet = models.resnet18(pretrained=True)
+        self.modified_resnet = nn.Sequential(*list(pretrained_resnet.children())[:-4])
+        for param in self.modified_resnet.parameters(): # Freeze
+            param.requires_grad = False
+
+        self.conv_addition = nn.Sequential(
+            nn.Conv2d(128, 256, 5),
+            nn.LeakyReLU(),
+            nn.Conv2d(256, 256, 3),
+            nn.LeakyReLU(),
+            nn.Conv2d(256, 5, 5)
+        )
+
+    def forward(self, x):
+        x = self.modified_resnet(x)
+        x = self.conv_addition(x)
+        return x

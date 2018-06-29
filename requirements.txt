@@ -2,3 +2,5 @@ torchvision
 scikit-image
 pandas
 scikit-learn
+torch
+opencv-python
