@@ -1,4 +1,3 @@
-import io
 import os
 import torch
 from math import floor
@@ -72,7 +71,7 @@ class YoloDataset(Dataset):
         return [round(i, 1) for i in new_box]
 
     def _get_boxes_kmeans(self, num_of_classes):
-        # In this task we will have only one class face so it's redndant
+        # In this task we will have only one class face so it's redundant
         # classes = [x[1] for x in os.walk(self.root_dir)][0]
         column_names = list(self.boxes)
         class_boxes = self.boxes[column_names[1:]].values

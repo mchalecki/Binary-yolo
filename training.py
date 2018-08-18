@@ -12,7 +12,7 @@ from network import CustomModel, MyResnet
 from utils.saver import CheckpointSaver
 from utils.stats import AVG
 
-parser = argparse.ArgumentParser(description='Description of your program')
+parser = argparse.ArgumentParser(description='Training of yolonet')
 parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--test_size', help="Percentage of dataset to be test set", type=float, default=0.1)
 parser.add_argument('--epochs', help="Number of epochs", type=int, default=200)
@@ -47,17 +47,15 @@ def train(args):
         model.cuda()
     optimizer = optim.Adam(model.conv_addition.parameters(), lr=args.lr)
     saver = CheckpointSaver(args.save_dir_name, max_checkpoints=3)
-    scheduler = lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.1)
-    epoch_losses = []
+    scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
     for epoch in range(args.epochs):
         epoch_avg = AVG()
         for phase in ['train']:
             if phase == 'train':
                 scheduler.step()
-                model.train()  # Set model to training mode
+                model.train()
             else:
-                model.eval()  # Set model to evaluate mode
-
+                model.eval()
             for i, data in enumerate(dataloaders[phase]):
                 img, y = data['img'], data['y']
                 if CUDA:
@@ -76,13 +74,9 @@ def train(args):
                         loss.backward()
                         optimizer.step()
                 print(f"Epoch: {epoch}, batch: {i}, loss {loss.item()}")
-        if epoch % 50 == 0:
+        if epoch % 20 == 0:
             saver.save(model, optimizer, epoch)
         print(f"Epoch loss: {epoch_avg}")
-        epoch_losses.append(str(epoch_avg))
-
-    with open("losses", "w+") as file:
-        file.write(str(epoch_losses))
 
 
 def loss_function(y_, y):
@@ -92,9 +86,6 @@ def loss_function(y_, y):
     :param y: Ground truth
     :return: 1-dim tensor of loss value
     """
-    # loss = torch.zeros(1, requires_grad=True)
-    # if CUDA:
-    #     loss = loss.cuda()
     loss = torch.sum(
         y[..., 0] * (
                 c_orrd * (y_[..., 0] - y[..., 0]) ** 2 +
@@ -104,22 +95,6 @@ def loss_function(y_, y):
                 c_noobj * y_[..., 0] ** 2
         )
     )
-    # for predicted_single_example, target_single_example in zip(y_, y):
-    #     for predicted_row, target_row in zip(predicted_single_example, target_single_example):
-    #         for predited_cell, target_cell in zip(predicted_row, target_row):
-    #             loss += (1 - target_cell[0]) * c_noobj * predited_cell[0] ** 2 + \
-    #                     target_cell[0] * (c_orrd * (predited_cell[0] - target_cell[0]) ** 2 +
-    #                                       c_orrd * (predited_cell[1] - target_cell[1]) ** 2 +
-    #                                       (predited_cell[3] - target_cell[3]) ** 2 + (
-    #                                               predited_cell[4] - target_cell[4]) ** 2
-    #                                       )
-    # if target_cell[0] == 0:  # there shouldn't be object
-    #     loss += c_noobj * predited_cell[0] ** 2
-    # else:
-    #     loss += c_orrd * (predited_cell[0] - target_cell[0]) ** 2  # p
-    #     loss += c_orrd * (predited_cell[1] - target_cell[1]) ** 2 + (
-    #             predited_cell[2] - target_cell[2]) ** 2  # x y
-    #     loss += (predited_cell[3] - target_cell[3]) ** 2 + (predited_cell[4] - target_cell[4]) ** 2  # wh
     return loss
 
 
