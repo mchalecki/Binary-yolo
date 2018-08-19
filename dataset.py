@@ -1,4 +1,6 @@
 import os
+from pathlib import Path
+
 import torch
 from math import floor
 
@@ -14,8 +16,8 @@ import pandas as pd
 # IN 416x416x3
 # OUT 64X64x5(p, bx, by, bw, bh)
 class YoloDataset(Dataset):
-    def __init__(self, csv_file: str, root_dir: str, num_of_classes: int = 1, IN=416, transform=None):
-        self.boxes = pd.read_csv(csv_file, names=["filename", "top", "right", "bottom", "left"])
+    def __init__(self, root_dir: Path, csv_filename: str, num_of_classes: int = 1, IN=416, transform=None):
+        self.boxes = pd.read_csv(root_dir / csv_filename, names=["filename", "top", "right", "bottom", "left"])
         self.root_dir = root_dir
         self.transform = transform
         # self.boxes_kmeans = self._get_boxes_kmeans(num_of_classes)
@@ -40,7 +42,7 @@ class YoloDataset(Dataset):
                 in_size = img.shape
         except IndexError:
             print(f"Remove from csv white/black image {box[0]}")
-        img = resize(img, (self.IN, self.IN))
+        img = resize(img, (self.IN, self.IN), mode='constant', anti_aliasing=False)
         boxes_rescaled = [self._rescale_box(i[1:], in_size) for i in img_boxes.values]
         y = self._get_y_to_img(boxes_rescaled)
         sample = {"x": img, 'y': y}
@@ -99,6 +101,6 @@ class ToTensor:
 
 
 if __name__ == '__main__':
-    yolo_dataset = YoloDataset('./raw_dataset/raw_dataset/faces.csv', './raw_dataset/raw_dataset', IN=195)
+    yolo_dataset = YoloDataset(Path('./raw_dataset'), 'faces.csv',IN=195)
     a = yolo_dataset[3]
     print(a)

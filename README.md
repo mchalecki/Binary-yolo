@@ -23,8 +23,7 @@ Original paper - [arxiv](https://arxiv.org/abs/1612.08242)
 ### Dataset
 Structure:
 
-raw_dataset/
-+  raw_dataset/
++  dataset/
     +   class1/
     +   class2/
     +   annotation.csv

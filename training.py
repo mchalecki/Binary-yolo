@@ -1,16 +1,22 @@
 import argparse
 import random
 import torch
+import logging
+
 from torch import optim
 from torch.optim import lr_scheduler
-
 from torch.utils.data.dataset import Subset
 from torchvision import transforms
+from tensorboardX import SummaryWriter
 
 from dataset import YoloDataset, ToTensor
 from network import CustomModel, MyResnet
+from paths import DATASET, DATASET_LOGDIR
 from utils.saver import CheckpointSaver
 from utils.stats import AVG
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 parser = argparse.ArgumentParser(description='Training of yolonet')
 parser.add_argument('--batch_size', type=int, default=32)
@@ -26,7 +32,7 @@ c_noobj = .5
 
 
 def train(args):
-    yolo_dataset = YoloDataset('./raw_dataset/raw_dataset/faces.csv', './raw_dataset/raw_dataset', IN=195,
+    yolo_dataset = YoloDataset(DATASET, "faces.csv", IN=195,
                                transform=transforms.Compose([
                                    ToTensor()
                                ]))
@@ -45,9 +51,12 @@ def train(args):
     model = MyResnet()
     if CUDA:
         model.cuda()
+
     optimizer = optim.Adam(model.conv_addition.parameters(), lr=args.lr)
     saver = CheckpointSaver(args.save_dir_name, max_checkpoints=3)
     scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
+    writer = SummaryWriter(DATASET_LOGDIR)
+
     for epoch in range(args.epochs):
         epoch_avg = AVG()
         for phase in ['train']:
@@ -73,15 +82,18 @@ def train(args):
                     if phase == 'train':
                         loss.backward()
                         optimizer.step()
-                print(f"Epoch: {epoch}, batch: {i}, loss {loss.item()}")
+                logger.info(f"Epoch: {epoch}, batch: {i}, loss {loss.item()}")
+        logger.info(f"Epoch: {epoch}, average loss: {epoch_avg}")
+        writer.add_scalar('train_data/average_loss', epoch_avg, epoch)
         if epoch % 20 == 0:
             saver.save(model, optimizer, epoch)
-        print(f"Epoch loss: {epoch_avg}")
 
 
 def loss_function(y_, y):
     """
-    Calculate loss funtion as in paper
+    Calculate loss funtion as in paper except only for one class.
+    The first element of the vector is certainity.
+    There is only one class so there is no need for more elements than 4 in vector and loss by these elements.
     :param y_: Prediction
     :param y: Ground truth
     :return: 1-dim tensor of loss value

@@ -1,8 +1,11 @@
+import logging
 import os
 from collections import deque
 
 from torch import nn
 import torch
+
+logger = logging.getLogger(__name__)
 
 
 class TrackerDeque(deque):
@@ -11,7 +14,7 @@ class TrackerDeque(deque):
         self._maxlen = maxlen
         super(TrackerDeque, self).__init__()
 
-    def append(self, x):
+    def append(self, x: str) -> str:
         poped = None
         if self._maxlen and self.__len__() + 1 > self._maxlen:
             poped = self.popleft()
@@ -35,7 +38,7 @@ class CheckpointSaver:
         self.checkpoitns = TrackerDeque(max_checkpoints)
         self.only_weights = only_weights
         self.prefix = prefix
-        os.makedirs(dir, exist_ok=True)
+        os.makedirs(os.path.join(dir, 'log'), exist_ok=True)
 
     def save(self, model: nn.Module, optimizer: torch.optim.Optimizer, epoch: int, step: int = None, **kwargs):
         if step is None:
@@ -54,7 +57,7 @@ class CheckpointSaver:
             save_state['model'] = model
         save_state = dict(save_state, **kwargs)
         torch.save(save_state, checkpoint_path)
-        print(f"Saved in {checkpoint_path}")
+        logger.info(f"Saved in {checkpoint_path}")
         popped = self.checkpoitns.append(checkpoint_path)
         if popped:
             try:
@@ -64,7 +67,7 @@ class CheckpointSaver:
 
     @staticmethod
     def load(path, model, optimizer):
-        print(f"Loading checkpoint from {path}")
+        logger.info(f"Loading checkpoint from {path}")
         if os.path.isfile(path):
             checkpoint = torch.load(path)
             model.load_state_dict(checkpoint['state_dict'])
@@ -72,10 +75,10 @@ class CheckpointSaver:
             others = checkpoint.copy()
             others.pop('state_dict')
             others.pop('optimizer')
-            print(f"Successfully loaded from {path}")
+            logger.info(f"Successfully loaded from {path}")
             return model, optimizer, others
         else:
-            print(f"No checkpoint at {path}")
+            logger.info(f"No checkpoint at {path}")
 
 
 def adjust_learning_rate(optimizer, epoch, lr_default=0.001):
