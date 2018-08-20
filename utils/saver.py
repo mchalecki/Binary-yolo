@@ -1,6 +1,7 @@
 import logging
 import os
 from collections import deque
+from typing import Optional
 
 from torch import nn
 import torch
@@ -14,7 +15,7 @@ class TrackerDeque(deque):
         self._maxlen = maxlen
         super(TrackerDeque, self).__init__()
 
-    def append(self, x: str) -> str:
+    def append(self, x: str) -> Optional[str]:
         poped = None
         if self._maxlen and self.__len__() + 1 > self._maxlen:
             poped = self.popleft()

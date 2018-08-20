@@ -16,13 +16,13 @@ import pandas as pd
 # IN 416x416x3
 # OUT 64X64x5(p, bx, by, bw, bh)
 class YoloDataset(Dataset):
-    def __init__(self, root_dir: Path, csv_filename: str, num_of_classes: int = 1, IN=416, transform=None):
+    def __init__(self, root_dir: Path, csv_filename: str, num_of_classes: int = 1, input_size:int=416, transform=None):
         self.boxes = pd.read_csv(root_dir / csv_filename, names=["filename", "top", "right", "bottom", "left"])
         self.root_dir = root_dir
         self.transform = transform
         # self.boxes_kmeans = self._get_boxes_kmeans(num_of_classes)
         self.anchors = 1
-        self.IN = IN
+        self.IN = input_size
         self.FILTER_SIZE = 13
         assert self.IN % self.FILTER_SIZE == 0
         self.OUT = int(self.IN / self.FILTER_SIZE)
@@ -101,6 +101,6 @@ class ToTensor:
 
 
 if __name__ == '__main__':
-    yolo_dataset = YoloDataset(Path('./raw_dataset'), 'faces.csv',IN=195)
+    yolo_dataset = YoloDataset(Path('./raw_dataset'), 'faces.csv', input_size=195)
     a = yolo_dataset[3]
     print(a)
